@@ -1,7 +1,7 @@
 # SolidworksToWeb <img src="https://github.com/kermitine/SolidworksToWeb/blob/91779338dc7ff0fc549041e5aa3be40f8f05665a/assets/icon.ico" width="64">
 
 
-A Python3-based tool that makes sharing your Solidworks animations easier than ever,
+A Python3-based tool that makes sharing your Solidworks animations easier than ever.
 
 ## Motivation
 This program was made by me as a way to automatically convert Solidworks Motion Study Animations into something shareable and embed-able (don't dictionary check me) on the web, in my case, my wordpress site.
