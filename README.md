@@ -13,23 +13,10 @@ Chroma-Keys out a background, leaving outputs with a clean, transparent backgrou
 Exports your MP4 file into a web optimized Web Media file.
 
 ### APNG Export
-For certain devices/browsers which dont support WEBM, it also supports exporting it into an Animated PNG.
+For certain devices/browsers which dont support WEBM, it also supports exporting it into an Animated PNG, for those that don't support WEBM files.
 
 
 ## Dependencies
-import os
-import cv2
-import numpy as np
-import subprocess
-import shutil
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename
-from moviepy import VideoFileClip
-from moviepy.video.fx import MaskColor, Crop
-
-
-
-
 
 ```pip install tkinter```
 
@@ -49,8 +36,11 @@ from moviepy.video.fx import MaskColor, Crop
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
 ## Examples
+You can probably see at least one of these, right?
 
+![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/9c1784e6c2bc257d038ddcc785ce37960a3ba222/examples/i3engine.png)
 
+![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/9c1784e6c2bc257d038ddcc785ce37960a3ba222/examples/i3engine.webm)
 ## License
 This repository/project is licensed under the GNU Affero General Public v3.0-or-later. For more information, please consult the LICENSE file (located in the root of the project), or visit https://www.gnu.org/licenses/agpl-3.0.en.html to read the full license.
 
