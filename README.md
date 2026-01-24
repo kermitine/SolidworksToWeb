@@ -38,9 +38,7 @@ After installing all dependencies, run main.py and select your mp4 file with a c
 ## Examples
 Here is the source file, which is directly uploaded to SWToWeb. No other human inputs required.
 
-![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/a7ae62749dd315ced01ff8f706b9b6bcb20dae5d/examples/i3engine.mp4)
-
-
+https://youtube.com/shorts/soDnxHmB2o8
 
 You can probably see at least one of these, right? 
 
