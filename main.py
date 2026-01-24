@@ -44,7 +44,7 @@ def clip_to_apng_v2(clip, apng_file, fps):
         out_png = os.path.join(frames_dir, f"frame_{i:06d}.png")
         cv2.imwrite(out_png, bgra)
 
-    # Stitch into APNG (true alpha, no palette)
+    # Stitch into APNG
     cmd = [
         "ffmpeg", "-y",
         "-framerate", str(int(fps)),
@@ -98,7 +98,7 @@ def mp4_to_transparent_webm_and_apng(
         ],
     )
 
-    # APNG for iOS (true alpha)
+    # APNG for iOS and other platforms
     print('Generating APNG frames...')
     clip_to_apng_v2(clip, "output/animation.png", fps=min(int(round(fps)), 30))
 
@@ -175,7 +175,7 @@ def _make_bbox_even(x1, y1, x2, y2, W, H):
     x2 = min(W, x2)
     y2 = min(H, y2)
 
-    # final sanity: if still odd due to clamp, shrink by 1
+    # if still odd due to clamp, shrink by 1
     if (x2 - x1) % 2: x2 -= 1
     if (y2 - y1) % 2: y2 -= 1
 
