@@ -8,7 +8,7 @@ This program was made by me as a way to automatically convert Solidworks Motion 
 
 ## Features
 ### Automatic Chroma-Keying
-Chroma-Keys out a background, leaving outputs with a clean, transparent background.
+Automatic chroma-keying, leaving outputs with a clean, transparent background.
 
 ### WEBM Export
 Exports your MP4 file into a web optimized Web Media file.
@@ -32,6 +32,8 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 ```pip install shutil```
 
 ```pip install moviepy```
+
+```pip install time```
 
 ## How to Use
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.

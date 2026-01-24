@@ -3,12 +3,17 @@ import cv2
 import numpy as np
 import subprocess
 import shutil
+import time
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from moviepy import VideoFileClip
 from moviepy.video.fx import MaskColor, Crop
+from KermLib.KermLib import *
 
-version = '1.0.0'
+version = '1.0.1'
+
+KermLib.ascii_run()
+print(f'SolidworksToWeb V{version} initialized')
 
 def empty_folder(folder_path):
     """Deletes all files and subdirectories within a given folder, but not the folder itself."""
@@ -18,9 +23,9 @@ def empty_folder(folder_path):
             os.remove(item_path)
         elif os.path.isdir(item_path):
             shutil.rmtree(item_path)
-    print(f"Folder '{folder_path}' is now empty.")
 
 def clip_to_apng_v2(clip, apng_file, fps):
+    print('Writing to APNG')
     frames_dir = os.path.join(os.path.dirname(apng_file) or ".", "apng_frames")
     os.makedirs(frames_dir, exist_ok=True)
 
@@ -84,6 +89,7 @@ def mp4_to_transparent_webm_and_apng(
     clip = clip.with_effects([Crop(x1=x1, y1=y1, x2=x2, y2=y2)])
 
     # WebM for desktop
+    print('Writing WebM file')
     clip.write_videofile(
         webm_file,
         fps=fps,
@@ -202,3 +208,5 @@ mp4_to_transparent_webm_and_apng(
 
 print('clearing temp apng frames')
 empty_folder('output/apng_frames')
+print('Completed. Closing in 5 seconds')
+time.sleep(5)
