@@ -1,4 +1,5 @@
-# SolidworksToWeb
+# SolidworksToWeb <img src="https://github.com/kermitine/SolidworksToWeb/blob/91779338dc7ff0fc549041e5aa3be40f8f05665a/assets/icon.ico" width="64">
+
 
 A Python3-based tool that makes sharing your Solidworks animations easier than ever,
 
