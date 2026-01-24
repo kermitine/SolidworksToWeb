@@ -41,11 +41,13 @@ Here is the source file, which is directly uploaded to SWToWeb. No other human i
 
 https://youtube.com/shorts/soDnxHmB2o8
 
-Here is a SWToWeb-generated animated png below, as Github does not seem to support WebM.
+Here are SWToWeb-generated animated pngs below, as Github does not seem to support WebM.
 
 ![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/9c1784e6c2bc257d038ddcc785ce37960a3ba222/examples/i3engine.png)
+![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/85fc7ccae3b526db24a88533571ac1ba9a18c321/examples/espresso_machine_explode.png
+)
 
-
+https://github.com/kermitine/SolidworksToWeb/blob/85fc7ccae3b526db24a88533571ac1ba9a18c321/examples/espresso_machine_explode.png
 A live example is visible on a blog post on my site here: https://ayriknabirahni.com/writeup/i3-engine/
 
 ## Sample Code
