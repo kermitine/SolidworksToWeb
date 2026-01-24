@@ -47,7 +47,6 @@ Here are SWToWeb-generated animated pngs below, as Github does not seem to suppo
 ![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/85fc7ccae3b526db24a88533571ac1ba9a18c321/examples/espresso_machine_explode.png
 )
 
-https://github.com/kermitine/SolidworksToWeb/blob/85fc7ccae3b526db24a88533571ac1ba9a18c321/examples/espresso_machine_explode.png
 A live example is visible on a blog post on my site here: https://ayriknabirahni.com/writeup/i3-engine/
 
 ## Sample Code
