@@ -50,7 +50,7 @@ Here are SWToWeb-generated animated pngs below, as Github does not seem to suppo
 
 A live example is visible on a blog post on my site here: https://ayriknabirahni.com/writeup/i3-engine/
 
-## Sample Code
+## Sample HTML/CSS
 This is the live, working code which I use on my wordpress site to control which assets are displayed.
 
 HTML:
