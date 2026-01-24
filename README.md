@@ -36,6 +36,12 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
 ## Examples
+Here is the source file, which is directly uploaded to SWToWeb. No other human inputs required.
+
+![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/a7ae62749dd315ced01ff8f706b9b6bcb20dae5d/examples/i3engine.mp4)
+
+
+
 You can probably see at least one of these, right? 
 
 ![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/9c1784e6c2bc257d038ddcc785ce37960a3ba222/examples/i3engine.png)
