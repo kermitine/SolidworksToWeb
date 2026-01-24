@@ -36,6 +36,7 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 ## How to Use
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
+Alternatively, you can just use the packaged exe (available in releases on this page) and run it like that, no installation of dependencies necessary. Just select your mp4 and wait.
 ## Examples
 Here are the source files, which are directly uploaded to SWToWeb. No other human inputs required.
 
@@ -101,7 +102,8 @@ Custom CSS:
 } /* default: hide APNG unless iOS */
 ```
 ## Common Issues
-Certain Wordpress compression plugins that automatically handle delivery can affect the plugin. An issue I encountered was with CompressX, which would optimize the png with AVIF and WebP alternatives and automatically deliver the most optimal. Obviously, this affected the animated png on ios, as the AVIF and WebP were not animated.
+Certain Wordpress compression plugins that automatically handle delivery can affect the plugin. An issue I encountered was with CompressX, which would optimize the png with AVIF and WebP alternatives and automatically deliver the most optimal. Obviously, this affected the animated png on ios, as the AVIF and WebP were not animated. Ensure that your APNG files are excluded from this compression plugins.
+
 ## License
 This repository/project is licensed under the GNU Affero General Public v3.0-or-later. For more information, please consult the LICENSE file (located in the root of the project), or visit https://www.gnu.org/licenses/agpl-3.0.en.html to read the full license.
 
