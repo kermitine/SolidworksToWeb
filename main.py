@@ -6,6 +6,7 @@ from tkinter.filedialog import askopenfilename
 from moviepy import VideoFileClip
 from moviepy.video.fx import MaskColor, Crop
 
+version = '1.0.0'
 
 def mp4_to_transparent_cropped_webm(
     mp4_file,
@@ -29,12 +30,11 @@ def mp4_to_transparent_cropped_webm(
         frame0[-6, -6],
     ], dtype=np.float32)
     key_color = tuple(np.round(corners.mean(axis=0)).astype(int))
-    print("Auto key_color =", key_color)
+    print("keying out color:", key_color)
 
-    # 1) Key out background (MoviePy v2: positional args)
+    # 1) Key out background
     clip = clip.with_effects([MaskColor(key_color, thr, s)])
 
-    # Quick debug: see if the mask is doing anything
     m0 = clip.mask.get_frame(0) if clip.mask is not None else None
     if m0 is not None:
         print("Mask min/max =", float(m0.min()), float(m0.max()))
@@ -74,7 +74,7 @@ def _tight_bbox_from_mask_v2(clip, sample_every_frames=10, pad=10):
 
     for t in t_values:
         m = clip.mask.get_frame(float(t))
-        ys, xs = np.where(m > 0.02)
+        ys, xs = np.where(m > 0.10)
         if xs.size == 0:
             continue
         found_any = True
@@ -95,7 +95,7 @@ def _tight_bbox_from_mask_v2(clip, sample_every_frames=10, pad=10):
 
 
 # get file
-Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+Tk().withdraw() 
 input_filepath = askopenfilename() 
 
 cap = cv2.VideoCapture(input_filepath)
