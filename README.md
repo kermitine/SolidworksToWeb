@@ -37,15 +37,16 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
 ## Examples
-Here is the source file, which is directly uploaded to SWToWeb. No other human inputs required.
+Here are the source files, which are directly uploaded to SWToWeb. No other human inputs required.
 
-https://youtube.com/shorts/soDnxHmB2o8
+https://youtube.com/shorts/soDnxHmB2o8 (I3 Engine)
+
+https://youtu.be/oANaYYsdhUI (Espresso Machine)
 
 Here are SWToWeb-generated animated pngs below, as Github does not seem to support WebM.
 
 ![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/9c1784e6c2bc257d038ddcc785ce37960a3ba222/examples/i3engine.png)
-![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/85fc7ccae3b526db24a88533571ac1ba9a18c321/examples/espresso_machine_explode.png
-)
+![kermitine](https://github.com/kermitine/SolidworksToWeb/blob/85fc7ccae3b526db24a88533571ac1ba9a18c321/examples/espresso_machine_explode.png)
 
 A live example is visible on a blog post on my site here: https://ayriknabirahni.com/writeup/i3-engine/
 
