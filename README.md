@@ -14,7 +14,7 @@ Chroma-Keys out a background, leaving outputs with a clean, transparent backgrou
 Exports your MP4 file into a web optimized Web Media file.
 
 ### APNG Export
-For certain devices/browsers which dont support WEBM, it also supports exporting it into an Animated PNG, for those that don't support WEBM files.
+For certain devices/browsers which dont support WEBM, it also supports exporting it into an Animated PNG.
 
 
 ## Dependencies
