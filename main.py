@@ -183,7 +183,8 @@ def _make_bbox_even(x1, y1, x2, y2, W, H):
 
 
 # get file
-Tk().withdraw() 
+Tk().withdraw()
+print('Please select your original mp4 to chroma key:') 
 input_filepath = askopenfilename() 
 
 cap = cv2.VideoCapture(input_filepath)
