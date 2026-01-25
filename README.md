@@ -35,6 +35,7 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 
 ```pip install time```
 
+FFMPEG also must be installed/added to path for APNG generation to function. FFMPEG comes automatically bundled with the executable.
 ## How to Use
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
