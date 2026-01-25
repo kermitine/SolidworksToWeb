@@ -4,11 +4,15 @@ import numpy as np
 import subprocess
 import shutil
 import time
+import sys
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from moviepy import VideoFileClip
 from moviepy.video.fx import MaskColor, Crop
 from KermLib.KermLib import *
+
+# pyinstaller --onefile --icon assets/icon.ico --add-binary "C:\ffmpeg\bin\ffmpeg.exe;." main.py
+
 
 version = '1.0.1'
 
@@ -23,6 +27,29 @@ def empty_folder(folder_path):
             os.remove(item_path)
         elif os.path.isdir(item_path):
             shutil.rmtree(item_path)
+
+
+def get_ffmpeg_path() -> str:
+    """
+    Returns an absolute path to ffmpeg.exe.
+
+    - In a PyInstaller onefile build, ffmpeg.exe is extracted to sys._MEIPASS.
+    - In normal dev mode, we try:
+        1) ./ffmpeg.exe next to the script
+        2) system PATH ("ffmpeg")
+    """
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        bundled = os.path.join(sys._MEIPASS, "ffmpeg.exe")
+        if os.path.exists(bundled):
+            return bundled
+
+    local = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg.exe")
+    if os.path.exists(local):
+        return local
+
+    return "ffmpeg"
+
+
 
 def clip_to_apng_v2(clip, apng_file, fps):
     print('Writing to APNG')
@@ -50,8 +77,10 @@ def clip_to_apng_v2(clip, apng_file, fps):
         cv2.imwrite(out_png, bgra)
 
     # Stitch into APNG
+    ffmpeg = get_ffmpeg_path()
+
     cmd = [
-        "ffmpeg", "-y",
+        ffmpeg, "-y",
         "-framerate", str(int(fps)),
         "-i", os.path.join(frames_dir, "frame_%06d.png"),
         "-plays", "0",

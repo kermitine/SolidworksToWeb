@@ -38,7 +38,7 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 ## How to Use
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
-Alternatively, you can just use the packaged exe (available in releases on this page) and run it like that. Note that FFMPEG must be installed onto PATH for the APNG export to work.
+Alternatively, you can just use the packaged exe (available in releases on this page) and run it like that. FFMPEG comes automatically bundled along with the executable.
 ## Examples
 Here are the source files, which are directly uploaded to SWToWeb. No other human inputs required.
 
