@@ -20,7 +20,6 @@ KermLib.ascii_run()
 print(f'SolidworksToWeb V{version} initialized')
 
 def empty_folder(folder_path):
-    """Deletes all files and subdirectories within a given folder, but not the folder itself."""
     for item in os.listdir(folder_path):
         item_path = os.path.join(folder_path, item)
         if os.path.isfile(item_path) or os.path.islink(item_path):
@@ -30,14 +29,6 @@ def empty_folder(folder_path):
 
 
 def get_ffmpeg_path() -> str:
-    """
-    Returns an absolute path to ffmpeg.exe.
-
-    - In a PyInstaller onefile build, ffmpeg.exe is extracted to sys._MEIPASS.
-    - In normal dev mode, we try:
-        1) ./ffmpeg.exe next to the script
-        2) system PATH ("ffmpeg")
-    """
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         bundled = os.path.join(sys._MEIPASS, "ffmpeg.exe")
         if os.path.exists(bundled):
