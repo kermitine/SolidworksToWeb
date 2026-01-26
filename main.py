@@ -213,7 +213,7 @@ Tk().withdraw()
 print('Please select your original mp4 to chroma key:') 
 input_filepath = askopenfilename() 
 
-cap = cv2.VideoCapture(input_filepath)
+cap = cv2.VideoCapture(input_filepath) # grab fps for video
 fps = cap.get(cv2.CAP_PROP_FPS)
 cap.release
 
