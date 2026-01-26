@@ -5,6 +5,7 @@ import subprocess
 import shutil
 import time
 import sys
+from pathlib import Path
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from moviepy import VideoFileClip
@@ -20,12 +21,7 @@ KermLib.ascii_run()
 print(f'SolidworksToWeb V{version} initialized')
 
 def empty_folder(folder_path):
-    for item in os.listdir(folder_path):
-        item_path = os.path.join(folder_path, item)
-        if os.path.isfile(item_path) or os.path.islink(item_path):
-            os.remove(item_path)
-        elif os.path.isdir(item_path):
-            shutil.rmtree(item_path)
+    shutil.rmtree(folder_path)
 
 
 def get_ffmpeg_path() -> str:
@@ -212,20 +208,24 @@ Tk().withdraw()
 print('Please select your original mp4 to chroma key:') 
 input_filepath = askopenfilename() 
 
+# extract filename (no extension)
+path = Path(input_filepath)
+filename = path.stem
+
 cap = cv2.VideoCapture(input_filepath) # grab fps for video
 fps = cap.get(cv2.CAP_PROP_FPS)
 cap.release
 
 mp4_to_transparent_webm_and_apng(
     input_filepath,
-    "output/animation.webm",
-    "output/animation.png",
+    f"output/{filename}/{filename}.webm",
+    f"output/{filename}/{filename}.png",
     fps=fps,
     thr=135,
     s=12
 )
 
 print('clearing temp apng frames')
-empty_folder('output/apng_frames')
+empty_folder(f'output/{filename}/apng_frames')
 print('Completed. Closing in 5 seconds')
 time.sleep(5)
