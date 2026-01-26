@@ -230,21 +230,32 @@ print('bl = color of bottom left pixel')
 print('br = color of bottom right pixel')
 print('avg = average color of all 4 corners')
 print('Please select which corner(s) to extract greenscreen color from:')
-selected_corner = str(input())
 
-cap = cv2.VideoCapture(input_filepath) # grab fps for video
-fps = cap.get(cv2.CAP_PROP_FPS)
-cap.release
+while True:
+    selected_corner = str(input()).lower().strip()
+    if selected_corner not in ['tl', 'tr', 'bl', 'br', 'avg']:
+        print('Input not recognized. Please select which corner(s) to extract greenscreen color from:')
+        continue
+    break
 
-mp4_to_transparent_webm_and_apng(
-    input_filepath,
-    f"output/{filename}/{filename}.webm",
-    f"output/{filename}/{filename}.png",
-    fps=fps,
-    thr=135,
-    s=12,
-    corner=selected_corner
-)
+try:
+    cap = cv2.VideoCapture(input_filepath) # grab fps for video
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release
+
+    mp4_to_transparent_webm_and_apng(
+        input_filepath,
+        f"output/{filename}/{filename}.webm",
+        f"output/{filename}/{filename}.png",
+        fps=fps,
+        thr=135,
+        s=12,
+        corner=selected_corner
+    )
+except FileNotFoundError:
+    print('File not found/File not selected. Program will close in 3 seconds.')
+    time.sleep(3)
+    sys.exit()
 
 print('Clearing temp files...')
 empty_folder(f'output/{filename}/apng_frames')
