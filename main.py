@@ -20,7 +20,7 @@ version = '1.1.1'
 KermLib.ascii_run()
 print(f'SolidworksToWeb V{version} initialized')
 
-def empty_folder(folder_path):
+def delete_folder_recursive(folder_path):
     shutil.rmtree(folder_path)
 
 
@@ -258,6 +258,6 @@ except FileNotFoundError:
     sys.exit()
 
 print('Clearing temp files...')
-empty_folder(f'output/{filename}/apng_frames')
+delete_folder_recursive(f'output/{filename}/apng_frames')
 print('Animation generation complete. Program closing in 5 seconds.')
 time.sleep(5)
