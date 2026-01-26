@@ -125,7 +125,7 @@ def mp4_to_transparent_webm_and_apng(
 
     # APNG for iOS and other platforms
     print('Generating APNG frames...')
-    clip_to_apng_v2(clip, "output/animation.png", fps=min(int(round(fps)), 30))
+    clip_to_apng_v2(clip, apng_file, fps=min(int(round(fps)), 30))
 
     clip.close()
 
