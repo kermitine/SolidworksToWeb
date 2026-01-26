@@ -18,12 +18,7 @@ For certain devices/browsers which dont support WEBM, it also supports exporting
 
 
 ## Dependencies
-
-```pip install cv2```
-
-```pip install numpy```
-
-```pip install moviepy```
+run ```pip install -r requirements.txt``` in the root of the project.
 
 FFMPEG also must be installed/added to path for APNG generation to function. FFMPEG comes automatically bundled with the executable.
 ## How to Use
