@@ -234,7 +234,7 @@ print('Please select which corner(s) to extract greenscreen color from:')
 while True:
     selected_corner = str(input()).lower().strip()
     if selected_corner not in ['tl', 'tr', 'bl', 'br', 'avg']:
-        print('Input not recognized. Please select which corner(s) to extract greenscreen color from:')
+        print(f'"{selected_corner}" not recognized as a corner. Please select which corner(s) to extract greenscreen color from:')
         continue
     break
 
@@ -259,5 +259,5 @@ except FileNotFoundError:
 
 print('Clearing temp files...')
 delete_folder_recursive(f'output/{filename}/apng_frames')
-print('Animation generation complete. Program closing in 5 seconds.')
-time.sleep(5)
+print(f'Animation generation complete. Output is available in output/{filename}. Program will automatically close in 10 seconds.')
+time.sleep(10)
