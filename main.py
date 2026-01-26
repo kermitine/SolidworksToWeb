@@ -64,7 +64,7 @@ def clip_to_apng_v2(clip, apng_file, fps):
 
     # Stitch into APNG
     ffmpeg = get_ffmpeg_path()
-
+    print('Writing to APNG...')
     cmd = [
         ffmpeg, "-y",
         "-framerate", str(int(fps)),
@@ -95,7 +95,7 @@ def mp4_to_transparent_webm_and_apng(
     frame0 = clip.get_frame(0)
     corners = np.array([frame0[5, 5], frame0[5, -6], frame0[-6, 5], frame0[-6, -6]], dtype=np.float32)
     key_color = tuple(np.round(corners.mean(axis=0)).astype(int))
-    print("keying out color:", key_color)
+    print("Keying out detected background color:", key_color)
 
     clip = clip.with_effects([MaskColor(key_color, thr, s)])
 
@@ -104,7 +104,7 @@ def mp4_to_transparent_webm_and_apng(
     clip = clip.with_effects([Crop(x1=x1, y1=y1, x2=x2, y2=y2)])
 
     # WebM for desktop
-    print('Writing WebM file')
+    print('Writing to WebM...')
     clip.write_videofile(
         webm_file,
         fps=fps,
@@ -225,7 +225,7 @@ mp4_to_transparent_webm_and_apng(
     s=12
 )
 
-print('clearing temp apng frames')
+print('Clearing temp files...')
 empty_folder(f'output/{filename}/apng_frames')
-print('Completed. Closing in 5 seconds')
+print('Animation generation complete. Program closing in 5 seconds.')
 time.sleep(5)
