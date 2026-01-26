@@ -91,7 +91,12 @@ def mp4_to_transparent_webm_and_apng(
     os.makedirs(os.path.dirname(webm_file) or ".", exist_ok=True)
     os.makedirs(os.path.dirname(apng_file) or ".", exist_ok=True)
 
-    clip = VideoFileClip(mp4_file)
+    try:
+        clip = VideoFileClip(mp4_file)
+    except FileNotFoundError:
+        print('File not found/File not selected. Program will close in 3 seconds.')
+        time.sleep(3)
+        sys.exit()
 
     frame0 = clip.get_frame(0)
 
@@ -238,24 +243,19 @@ while True:
         continue
     break
 
-try:
-    cap = cv2.VideoCapture(input_filepath) # grab fps for video
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    cap.release
+cap = cv2.VideoCapture(input_filepath) # grab fps for video
+fps = cap.get(cv2.CAP_PROP_FPS)
+cap.release
 
-    mp4_to_transparent_webm_and_apng(
-        input_filepath,
-        f"output/{filename}/{filename}.webm",
-        f"output/{filename}/{filename}.png",
-        fps=fps,
-        thr=135,
-        s=12,
-        corner=selected_corner
-    )
-except FileNotFoundError:
-    print('File not found/File not selected. Program will close in 3 seconds.')
-    time.sleep(3)
-    sys.exit()
+mp4_to_transparent_webm_and_apng(
+    input_filepath,
+    f"output/{filename}/{filename}.webm",
+    f"output/{filename}/{filename}.png",
+    fps=fps,
+    thr=135,
+    s=12,
+    corner=selected_corner
+)
 
 print('Clearing temp files...')
 delete_folder_recursive(f'output/{filename}/apng_frames')
