@@ -85,7 +85,8 @@ def mp4_to_transparent_webm_and_apng(
     thr=35,
     s=6,
     sample_every_frames=10,
-    pad=10
+    pad=10,
+    corner='avg'
 ):
     os.makedirs(os.path.dirname(webm_file) or ".", exist_ok=True)
     os.makedirs(os.path.dirname(apng_file) or ".", exist_ok=True)
@@ -93,8 +94,19 @@ def mp4_to_transparent_webm_and_apng(
     clip = VideoFileClip(mp4_file)
 
     frame0 = clip.get_frame(0)
-    corners = np.array([frame0[5, 5], frame0[5, -6], frame0[-6, 5], frame0[-6, -6]], dtype=np.float32)
-    key_color = tuple(np.round(corners.mean(axis=0)).astype(int))
+
+    if corner == 'avg':
+        corners = np.array([frame0[5, 5], frame0[5, -6], frame0[-6, 5], frame0[-6, -6]], dtype=np.float32)
+        key_color = tuple(np.round(corners.mean(axis=0)).astype(int))
+    elif corner == 'tl':  # top-left
+        key_color = tuple(frame0[5, 5].astype(int))
+    elif corner == 'tr':  # top-right
+        key_color = tuple(frame0[5, -6].astype(int))
+    elif corner == 'bl':  # bottom-left
+        key_color = tuple(frame0[-6, 5].astype(int))
+    elif corner == 'br':  # bottom-right
+        key_color = tuple(frame0[-6, -6].astype(int))
+
     print("Keying out detected background color:", key_color)
 
     clip = clip.with_effects([MaskColor(key_color, thr, s)])
@@ -212,6 +224,14 @@ input_filepath = askopenfilename()
 path = Path(input_filepath)
 filename = path.stem
 
+print('tl = color of top left pixel')
+print('tr = color of top right pixel')
+print('bl = color of bottom left pixel')
+print('br = color of bottom right pixel')
+print('avg = average color of all 4 corners')
+print('Please select which corner(s) to extract greenscreen color from:')
+selected_corner = str(input())
+
 cap = cv2.VideoCapture(input_filepath) # grab fps for video
 fps = cap.get(cv2.CAP_PROP_FPS)
 cap.release
@@ -222,7 +242,8 @@ mp4_to_transparent_webm_and_apng(
     f"output/{filename}/{filename}.png",
     fps=fps,
     thr=135,
-    s=12
+    s=12,
+    corner=selected_corner
 )
 
 print('Clearing temp files...')
