@@ -15,7 +15,7 @@ from KermLib.KermLib import *
 # pyinstaller --onefile --icon assets/icon.ico --add-binary "C:\ffmpeg\bin\ffmpeg.exe;." main.py
 
 
-version = '1.1.1'
+version = '1.1.2'
 
 KermLib.ascii_run()
 print(f'SolidworksToWeb V{version} initialized')
