@@ -43,7 +43,6 @@ def get_ffmpeg_path() -> str:
 
 
 def clip_to_apng_v2(clip, apng_file, fps):
-    print('Writing to APNG')
     frames_dir = os.path.join(os.path.dirname(apng_file) or ".", "apng_frames")
     os.makedirs(frames_dir, exist_ok=True)
 
