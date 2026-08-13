@@ -107,7 +107,8 @@ PAGE = """
     .error,
     .status-pill {
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: normal;
+      word-break: normal;
     }
 
     body {
@@ -285,7 +286,7 @@ PAGE = """
 
     .segments {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
       gap: 6px;
       margin-top: 8px;
     }
@@ -314,6 +315,7 @@ PAGE = """
       font-weight: 700;
       line-height: 1.1;
       text-align: center;
+      white-space: normal;
       cursor: pointer;
     }
 
@@ -588,7 +590,7 @@ PAGE = """
       .header-actions { align-items: flex-end; }
       main { grid-template-columns: 1fr; }
       .advanced-grid { grid-template-columns: 1fr; }
-      .segments { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
+      .segments { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
       .result-head { align-items: flex-start; }
     }
 
@@ -871,6 +873,14 @@ PAGE = """
         new ResizeObserver(postEmbedHeight).observe(document.querySelector(".shell"));
       }
       postEmbedHeight();
+      let embedPingCount = 0;
+      const embedPingTimer = window.setInterval(() => {
+        postEmbedHeight();
+        embedPingCount += 1;
+        if (embedPingCount >= 10) {
+          window.clearInterval(embedPingTimer);
+        }
+      }, 1000);
     }
   </script>
 </body>
@@ -1113,11 +1123,11 @@ def render_page(error=None, job=None):
         retention_label=retention_label(),
         embed_mode=embed_mode,
         corners=[
-            ("avg", "Avg"),
-            ("tl", "TL"),
-            ("tr", "TR"),
-            ("bl", "BL"),
-            ("br", "BR"),
+            ("avg", "Average"),
+            ("tl", "Top Left"),
+            ("tr", "Top Right"),
+            ("bl", "Bottom Left"),
+            ("br", "Bottom Right"),
         ],
         selected_corner=request.form.get("corner", "avg"),
         threshold=clamp_int(request.form.get("threshold"), 135, 1, 255),

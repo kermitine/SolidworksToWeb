@@ -80,14 +80,45 @@ To embed the converter on another site, allow that site in `SWTOWEB_FRAME_ANCEST
 <script>
 const swtowebIframe = document.getElementById("swtoweb-converter");
 const swtowebLoader = document.getElementById("swtoweb-loader");
+const swtowebLoaderText = swtowebLoader ? swtowebLoader.querySelector("strong") : null;
+const swtowebMaxRetries = 3;
+const swtowebRetryDelayMs = 7000;
+let swtowebRetryCount = 0;
+let swtowebReady = false;
+let swtowebRetryTimer = null;
 
 function showSwtowebFrame() {
+  swtowebReady = true;
+  window.clearTimeout(swtowebRetryTimer);
   if (swtowebLoader) swtowebLoader.hidden = true;
   if (swtowebIframe) swtowebIframe.classList.add("is-loaded");
 }
 
-if (swtowebIframe) {
-  swtowebIframe.addEventListener("load", showSwtowebFrame);
+function resetSwtowebFrame() {
+  if (!swtowebIframe || swtowebReady) return;
+
+  if (swtowebRetryCount >= swtowebMaxRetries) {
+    if (swtowebLoaderText) {
+      swtowebLoaderText.textContent = "Converter is taking longer than expected. Refresh this page to try again.";
+    }
+    return;
+  }
+
+  swtowebRetryCount += 1;
+  if (swtowebLoaderText) {
+    swtowebLoaderText.textContent = `Retrying converter... (${swtowebRetryCount}/${swtowebMaxRetries})`;
+  }
+
+  const nextUrl = new URL(swtowebIframe.src);
+  nextUrl.searchParams.set("retry", Date.now().toString());
+  swtowebIframe.classList.remove("is-loaded");
+  swtowebIframe.src = nextUrl.toString();
+  startSwtowebWatchdog();
+}
+
+function startSwtowebWatchdog() {
+  window.clearTimeout(swtowebRetryTimer);
+  swtowebRetryTimer = window.setTimeout(resetSwtowebFrame, swtowebRetryDelayMs);
 }
 
 window.addEventListener("message", event => {
@@ -99,6 +130,8 @@ window.addEventListener("message", event => {
     swtowebIframe.style.height = `${Math.max(360, Math.min(event.data.height, 1600))}px`;
   }
 });
+
+startSwtowebWatchdog();
 </script>
 
 <style>
@@ -156,7 +189,7 @@ window.addEventListener("message", event => {
 </style>
 ```
 
-If the iframe occasionally shows a browser connection reset error, confirm the reverse proxy points at the published Docker port and that the container healthcheck is healthy. For the included Compose file, the host port is `8001` and the container port is `8000`.
+The wrapper keeps the loader visible until the converter sends a ready/resize message, and retries the iframe up to three times if that message never arrives. If connection reset errors persist, confirm the reverse proxy points at the published Docker port and that the container healthcheck is healthy. For the included Compose file, the host port is `8001` and the container port is `8000`.
 
 To update a deployed checkout:
 
