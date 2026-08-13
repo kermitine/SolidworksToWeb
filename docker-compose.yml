@@ -3,6 +3,7 @@ services:
     build:
       context: https://github.com/kermitine/SolidworksToWeb.git#main
     image: solidworkstoweb:latest
+    pull_policy: build
     ports:
       - "8000:8000"
     environment:
