@@ -93,24 +93,6 @@ PAGE = """
 
     [hidden] { display: none !important; }
 
-    h1,
-    h2,
-    h3,
-    p,
-    label,
-    legend,
-    summary,
-    button,
-    .button,
-    .help-link,
-    .notice,
-    .error,
-    .status-pill {
-      min-width: 0;
-      overflow-wrap: normal;
-      word-break: normal;
-    }
-
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -202,7 +184,7 @@ PAGE = """
 
     main {
       display: grid;
-      grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 420px) minmax(280px, 1fr);
       gap: 20px;
       align-items: start;
     }
@@ -226,7 +208,7 @@ PAGE = """
     }
 
     .embed-mode main {
-      grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 400px) minmax(280px, 1fr);
       gap: 14px;
     }
 
@@ -410,18 +392,13 @@ PAGE = """
       display: block;
       width: 100%;
       align-self: stretch;
+      min-width: min(100%, 280px);
       min-height: 112px;
     }
 
     .result-body,
     .empty {
       padding: 18px;
-    }
-
-    .result-body > *,
-    .empty > * {
-      min-width: 0;
-      max-width: 100%;
     }
 
     .result-head {
@@ -448,8 +425,10 @@ PAGE = """
 
     .empty h2,
     .empty p {
+      display: block;
+      width: 100%;
       white-space: normal;
-      overflow-wrap: break-word;
+      overflow-wrap: normal;
       word-break: normal;
     }
 
@@ -604,11 +583,14 @@ PAGE = """
       white-space: pre;
     }
 
-    @media (max-width: 820px) {
+    @media (max-width: 860px) {
       .shell { width: min(100% - 24px, 640px); padding: 18px 0; }
       header { align-items: flex-start; }
       .header-actions { align-items: flex-end; }
-      main { grid-template-columns: 1fr; }
+      main,
+      .embed-mode main {
+        grid-template-columns: 1fr;
+      }
       .advanced-grid { grid-template-columns: 1fr; }
       .segments { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
       .result-head { align-items: flex-start; }
