@@ -15,6 +15,19 @@ from KermLib.KermLib import *
 
 version = '1.1.2'
 
+
+def _emit_log(log_callback, *parts):
+    message = " ".join(str(part) for part in parts)
+    if log_callback:
+        log_callback(message)
+    print(message)
+
+
+def _emit_progress(progress_callback, value, message=None):
+    if progress_callback:
+        progress_callback(max(0, min(100, int(value))), message)
+
+
 def delete_folder_recursive(folder_path):
     shutil.rmtree(folder_path)
 
@@ -33,13 +46,23 @@ def get_ffmpeg_path() -> str:
 
 
 
-def clip_to_apng_v2(clip, apng_file, fps):
+def clip_to_apng_v2(
+    clip,
+    apng_file,
+    fps,
+    log_callback=None,
+    progress_callback=None,
+    progress_start=75,
+    progress_end=95,
+):
     frames_dir = os.path.join(os.path.dirname(apng_file) or ".", "apng_frames")
     os.makedirs(frames_dir, exist_ok=True)
 
     # times to sample
     n_frames = int(np.ceil(clip.duration * fps))
     times = [i / fps for i in range(n_frames)]
+    progress_span = max(1, progress_end - progress_start)
+    last_logged_percent = -1
 
     for i, t in enumerate(times, start=1):
         rgb = clip.get_frame(t)  # HxWx3 uint8
@@ -56,10 +79,20 @@ def clip_to_apng_v2(clip, apng_file, fps):
 
         out_png = os.path.join(frames_dir, f"frame_{i:06d}.png")
         cv2.imwrite(out_png, bgra)
+        percent_done = int((i / max(1, n_frames)) * 100)
+        if percent_done >= last_logged_percent + 10 or i == n_frames:
+            last_logged_percent = percent_done
+            _emit_log(log_callback, f"APNG frames: {i}/{n_frames}")
+        _emit_progress(
+            progress_callback,
+            progress_start + int((i / max(1, n_frames)) * progress_span),
+            f"Generating APNG frames ({i}/{n_frames})",
+        )
 
     # Stitch into APNG
     ffmpeg = get_ffmpeg_path()
-    print('Writing to APNG...')
+    _emit_log(log_callback, 'Writing to APNG...')
+    _emit_progress(progress_callback, progress_end, "Stitching APNG")
     cmd = [
         ffmpeg, "-y",
         "-framerate", str(int(fps)),
@@ -69,6 +102,7 @@ def clip_to_apng_v2(clip, apng_file, fps):
         apng_file
     ]
     subprocess.run(cmd, check=True)
+    _emit_progress(progress_callback, 98, "APNG complete")
 
 
 
@@ -81,18 +115,24 @@ def mp4_to_transparent_webm_and_apng(
     s=6,
     sample_every_frames=10,
     pad=10,
-    corner='avg'
+    corner='avg',
+    log_callback=None,
+    progress_callback=None,
 ):
+    _emit_progress(progress_callback, 1, "Preparing output folders")
     os.makedirs(os.path.dirname(webm_file) or ".", exist_ok=True)
     os.makedirs(os.path.dirname(apng_file) or ".", exist_ok=True)
 
     try:
+        _emit_log(log_callback, f"Opening source MP4: {mp4_file}")
+        _emit_progress(progress_callback, 5, "Opening source MP4")
         clip = VideoFileClip(mp4_file)
     except FileNotFoundError:
-        print('File not found/File not selected. Program will close in 3 seconds.')
+        _emit_log(log_callback, 'File not found/File not selected. Program will close in 3 seconds.')
         time.sleep(3)
         sys.exit()
 
+    _emit_progress(progress_callback, 10, "Reading first frame")
     frame0 = clip.get_frame(0)
 
     if corner == 'avg':
@@ -107,16 +147,29 @@ def mp4_to_transparent_webm_and_apng(
     elif corner == 'br':  # bottom-right
         key_color = tuple(frame0[-6, -6].astype(int))
 
-    print("Keying out detected background color:", key_color)
+    _emit_log(log_callback, "Keying out detected background color:", key_color)
+    _emit_progress(progress_callback, 15, "Applying chroma key")
 
     clip = clip.with_effects([MaskColor(key_color, thr, s)])
 
-    x1, y1, x2, y2 = _tight_bbox_from_mask_v2(clip, sample_every_frames, pad)
+    _emit_log(log_callback, "Detecting transparent crop bounds...")
+    x1, y1, x2, y2 = _tight_bbox_from_mask_v2(
+        clip,
+        sample_every_frames,
+        pad,
+        log_callback=log_callback,
+        progress_callback=progress_callback,
+        progress_start=18,
+        progress_end=30,
+    )
     x1, y1, x2, y2 = _make_bbox_even(x1, y1, x2, y2, clip.w, clip.h)
+    _emit_log(log_callback, f"Crop bounds: x1={x1}, y1={y1}, x2={x2}, y2={y2}")
+    _emit_progress(progress_callback, 32, "Cropping transparent bounds")
     clip = clip.with_effects([Crop(x1=x1, y1=y1, x2=x2, y2=y2)])
 
     # WebM for desktop
-    print('Writing to WebM...')
+    _emit_log(log_callback, 'Writing to WebM...')
+    _emit_progress(progress_callback, 38, "Encoding WebM")
     clip.write_videofile(
         webm_file,
         fps=fps,
@@ -129,16 +182,36 @@ def mp4_to_transparent_webm_and_apng(
             "-b:v", "0",
             "-crf", "30",
         ],
+        logger=None,
     )
+    _emit_progress(progress_callback, 72, "WebM complete")
+    _emit_log(log_callback, f"WebM saved: {webm_file}")
 
     # APNG for iOS and other platforms
-    print('Generating APNG frames...')
-    clip_to_apng_v2(clip, apng_file, fps=min(int(round(fps)), (fps/2)))
+    _emit_log(log_callback, 'Generating APNG frames...')
+    clip_to_apng_v2(
+        clip,
+        apng_file,
+        fps=min(int(round(fps)), (fps/2)),
+        log_callback=log_callback,
+        progress_callback=progress_callback,
+    )
+    _emit_log(log_callback, f"APNG saved: {apng_file}")
 
     clip.close()
+    _emit_progress(progress_callback, 100, "Complete")
+    _emit_log(log_callback, "Animation generation complete.")
 
 
-def _tight_bbox_from_mask_v2(clip, sample_every_frames=10, pad=10):
+def _tight_bbox_from_mask_v2(
+    clip,
+    sample_every_frames=10,
+    pad=10,
+    log_callback=None,
+    progress_callback=None,
+    progress_start=18,
+    progress_end=30,
+):
     if clip.mask is None:
         return 0, 0, clip.w, clip.h
 
@@ -149,8 +222,10 @@ def _tight_bbox_from_mask_v2(clip, sample_every_frames=10, pad=10):
     min_x, min_y = w, h
     max_x, max_y = 0, 0
     found_any = False
+    progress_span = max(1, progress_end - progress_start)
+    total_samples = max(1, len(t_values))
 
-    for t in t_values:
+    for sample_index, t in enumerate(t_values, start=1):
         m = clip.mask.get_frame(float(t))
         ys, xs = np.where(m > 0.10)
         if xs.size == 0:
@@ -160,8 +235,16 @@ def _tight_bbox_from_mask_v2(clip, sample_every_frames=10, pad=10):
         max_x = max(max_x, int(xs.max()))
         min_y = min(min_y, int(ys.min()))
         max_y = max(max_y, int(ys.max()))
+        if sample_index == 1 or sample_index == total_samples or sample_index % 10 == 0:
+            _emit_log(log_callback, f"Crop scan: {sample_index}/{total_samples}")
+        _emit_progress(
+            progress_callback,
+            progress_start + int((sample_index / total_samples) * progress_span),
+            f"Scanning crop bounds ({sample_index}/{total_samples})",
+        )
 
     if not found_any:
+        _emit_log(log_callback, "No transparent crop area detected; using full frame.")
         return 0, 0, w, h
 
     return (
