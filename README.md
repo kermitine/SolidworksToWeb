@@ -63,26 +63,100 @@ The Compose service also drops Linux capabilities, prevents privilege escalation
 To embed the converter on another site, allow that site in `SWTOWEB_FRAME_ANCESTORS` and use the compact iframe URL:
 
 ```
-<iframe
-  id="swtoweb-converter"
-  src="https://swtoweb.ex1.prxima.uk/?embed=1"
-  title="SolidworksToWeb animation converter"
-  style="width: 100%; height: 520px; border: 0; display: block;"
-  loading="lazy"
-></iframe>
+<div class="swtoweb-frame-wrap">
+  <div class="swtoweb-loader" id="swtoweb-loader">
+    <span></span>
+    <strong>Loading converter...</strong>
+  </div>
+
+  <iframe
+    id="swtoweb-converter"
+    src="https://swtoweb.ex1.prxima.uk/?embed=1"
+    title="SolidworksToWeb animation converter"
+    loading="lazy"
+  ></iframe>
+</div>
 
 <script>
+const swtowebIframe = document.getElementById("swtoweb-converter");
+const swtowebLoader = document.getElementById("swtoweb-loader");
+
+function showSwtowebFrame() {
+  if (swtowebLoader) swtowebLoader.hidden = true;
+  if (swtowebIframe) swtowebIframe.classList.add("is-loaded");
+}
+
+if (swtowebIframe) {
+  swtowebIframe.addEventListener("load", showSwtowebFrame);
+}
+
 window.addEventListener("message", event => {
   if (event.origin !== "https://swtoweb.ex1.prxima.uk") return;
   if (!event.data || event.data.type !== "swtoweb:resize") return;
 
-  const iframe = document.getElementById("swtoweb-converter");
-  if (iframe) {
-    iframe.style.height = `${Math.max(360, Math.min(event.data.height, 1600))}px`;
+  showSwtowebFrame();
+  if (swtowebIframe) {
+    swtowebIframe.style.height = `${Math.max(360, Math.min(event.data.height, 1600))}px`;
   }
 });
 </script>
+
+<style>
+.swtoweb-frame-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+}
+
+#swtoweb-converter {
+  display: block;
+  width: 100%;
+  height: 520px;
+  border: 0;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+#swtoweb-converter.is-loaded {
+  opacity: 1;
+}
+
+.swtoweb-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  align-content: center;
+  min-height: 360px;
+  border: 1px solid #303942;
+  border-radius: 8px;
+  background: #090c10;
+  color: #f4f7f8;
+  font: 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.swtoweb-loader span {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(249, 0, 0, 0.24);
+  border-top-color: #f90000;
+  border-radius: 50%;
+  animation: swtoweb-spin 800ms linear infinite;
+}
+
+.swtoweb-loader[hidden] {
+  display: none;
+}
+
+@keyframes swtoweb-spin {
+  to { transform: rotate(360deg); }
+}
+</style>
 ```
+
+If the iframe occasionally shows a browser connection reset error, confirm the reverse proxy points at the published Docker port and that the container healthcheck is healthy. For the included Compose file, the host port is `8001` and the container port is `8000`.
 
 To update a deployed checkout:
 

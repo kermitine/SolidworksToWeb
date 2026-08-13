@@ -1068,6 +1068,11 @@ def index_get():
     return render_page()
 
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
 @app.post("/")
 def index():
     cleanup_expired_jobs()
