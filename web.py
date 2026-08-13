@@ -93,6 +93,23 @@ PAGE = """
 
     [hidden] { display: none !important; }
 
+    h1,
+    h2,
+    h3,
+    p,
+    label,
+    legend,
+    summary,
+    button,
+    .button,
+    .help-link,
+    .notice,
+    .error,
+    .status-pill {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -161,6 +178,10 @@ PAGE = """
     }
 
     .help-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
       color: var(--ink);
       border: 1px solid var(--line);
       border-radius: 6px;
@@ -168,6 +189,8 @@ PAGE = """
       padding: 7px 10px;
       font-size: 13px;
       font-weight: 750;
+      line-height: 1.15;
+      text-align: center;
       text-decoration: none;
     }
 
@@ -183,9 +206,14 @@ PAGE = """
       align-items: start;
     }
 
+    main > * {
+      min-width: 0;
+    }
+
     .tool,
     .result,
     .empty {
+      min-width: 0;
       background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -257,9 +285,13 @@ PAGE = """
 
     .segments {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
       gap: 6px;
       margin-top: 8px;
+    }
+
+    .segments label {
+      min-width: 0;
     }
 
     .segments input {
@@ -270,14 +302,18 @@ PAGE = """
 
     .segments span {
       display: grid;
+      width: 100%;
       min-height: 38px;
       place-items: center;
       border: 1px solid var(--line);
       border-radius: 6px;
       background: var(--panel-2);
       color: var(--muted);
+      padding: 8px 10px;
       font-size: 13px;
       font-weight: 700;
+      line-height: 1.1;
+      text-align: center;
       cursor: pointer;
     }
 
@@ -311,6 +347,7 @@ PAGE = """
     .button {
       appearance: none;
       display: inline-grid;
+      max-width: 100%;
       min-height: 42px;
       place-items: center;
       border: 0;
@@ -320,6 +357,8 @@ PAGE = """
       padding: 0 16px;
       font: inherit;
       font-weight: 750;
+      line-height: 1.15;
+      text-align: center;
       text-decoration: none;
       cursor: pointer;
       box-shadow: 0 10px 24px rgba(249, 0, 0, 0.18);
@@ -347,6 +386,7 @@ PAGE = """
       padding: 10px 12px;
       margin-bottom: 16px;
       font-size: 14px;
+      line-height: 1.4;
     }
 
     .notice {
@@ -392,6 +432,10 @@ PAGE = """
     }
 
     .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
       border: 1px solid var(--line);
       border-radius: 999px;
       color: var(--muted);
@@ -399,8 +443,9 @@ PAGE = """
       padding: 5px 9px;
       font-size: 12px;
       font-weight: 800;
+      line-height: 1.1;
+      text-align: center;
       text-transform: uppercase;
-      white-space: nowrap;
     }
 
     .status-pill.running,
@@ -501,6 +546,10 @@ PAGE = """
       margin-top: 14px;
     }
 
+    .actions .button {
+      flex: 1 1 150px;
+    }
+
     .embed-help {
       margin-top: 16px;
       padding-top: 14px;
@@ -539,8 +588,34 @@ PAGE = """
       .header-actions { align-items: flex-end; }
       main { grid-template-columns: 1fr; }
       .advanced-grid { grid-template-columns: 1fr; }
-      .segments { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .segments { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
       .result-head { align-items: flex-start; }
+    }
+
+    @media (max-width: 420px) {
+      .shell,
+      .embed-mode .shell {
+        width: min(100% - 16px, 640px);
+      }
+
+      .tool,
+      .result-body,
+      .empty {
+        padding: 14px;
+      }
+
+      .notice,
+      .error {
+        padding: 9px 10px;
+      }
+
+      .segments {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .result-head {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
