@@ -1,4 +1,5 @@
 import os
+import queue as queue_module
 import re
 import shutil
 import threading
@@ -44,6 +45,7 @@ MAX_LOG_LINES = env_int("SWTOWEB_MAX_LOG_LINES", 250, minimum=25)
 RETENTION_HOURS = env_float("SWTOWEB_RETENTION_HOURS", 24, minimum=0.25)
 CLEANUP_INTERVAL_SECONDS = env_int("SWTOWEB_CLEANUP_INTERVAL_MINUTES", 30, minimum=5) * 60
 MAX_ACTIVE_JOBS = env_int("SWTOWEB_MAX_ACTIVE_JOBS", 1, minimum=1)
+MAX_QUEUE_SIZE = env_int("SWTOWEB_MAX_QUEUE_SIZE", 10, minimum=1)
 FRAME_ANCESTORS = os.environ.get(
     "SWTOWEB_FRAME_ANCESTORS",
     "'self' https://ayriknabirahni.com https://www.ayriknabirahni.com",
@@ -58,7 +60,9 @@ app.config["SECRET_KEY"] = os.environ.get("SWTOWEB_SECRET_KEY") or os.urandom(32
 
 JOBS = {}
 JOBS_LOCK = threading.Lock()
+CONVERSION_QUEUE = queue_module.Queue(maxsize=MAX_QUEUE_SIZE)
 CLEANUP_STARTED = False
+QUEUE_WORKERS_STARTED = False
 
 
 PAGE = """
@@ -822,7 +826,11 @@ PAGE = """
       }
 
       if (logs) {
-        logs.textContent = (job.logs || []).join("\\n");
+        const logLines = [...(job.logs || [])];
+        if (job.status === "queued" && job.queue_position) {
+          logLines.push(`Queue position: ${job.queue_position}`);
+        }
+        logs.textContent = logLines.join("\\n");
         logs.scrollTop = logs.scrollHeight;
       }
 
@@ -955,8 +963,13 @@ def active_job_ids():
         }
 
 
-def active_job_count():
-    return len(active_job_ids())
+def queued_job_position(job_id):
+    with CONVERSION_QUEUE.mutex:
+        queued_ids = [item["job_id"] for item in list(CONVERSION_QUEUE.queue)]
+    try:
+        return queued_ids.index(job_id) + 1
+    except ValueError:
+        return None
 
 
 def cleanup_expired_jobs():
@@ -1042,7 +1055,12 @@ def snapshot_job(job_id):
             return None
         snapshot = dict(job)
         snapshot["logs"] = list(job["logs"])
-        return snapshot
+    if snapshot.get("status") == "queued":
+        position = queued_job_position(job_id)
+        snapshot["queue_position"] = position
+        if position:
+            snapshot["message"] = f"Queued (position {position})"
+    return snapshot
 
 
 def create_job(job_id, title):
@@ -1057,6 +1075,9 @@ def create_job(job_id, title):
         "apng_url": None,
         "error": None,
         "created_at": time.time(),
+        "started_at": None,
+        "finished_at": None,
+        "queue_position": None,
     }
     with JOBS_LOCK:
         JOBS[job_id] = job
@@ -1080,7 +1101,7 @@ def run_conversion_job(
     def progress(value, message=None):
         set_job_progress(job_id, value, message)
 
-    update_job(job_id, status="running", message="Starting", progress=0)
+    update_job(job_id, status="running", message="Starting", progress=0, started_at=time.time())
     add_log(job_id, f"Source: {input_path.name}")
 
     try:
@@ -1106,13 +1127,49 @@ def run_conversion_job(
             message="Complete",
             webm_url=f"/output/{job_id}/{webm_path.name}",
             apng_url=f"/output/{job_id}/{apng_path.name}",
+            finished_at=time.time(),
         )
     except Exception as exc:
         add_log(job_id, f"ERROR: {exc}")
-        update_job(job_id, status="failed", message="Failed", error=str(exc))
+        update_job(job_id, status="failed", message="Failed", error=str(exc), finished_at=time.time())
     finally:
         input_path.unlink(missing_ok=True)
         shutil.rmtree(webm_path.parent / "apng_frames", ignore_errors=True)
+
+
+def conversion_worker_loop(worker_number):
+    while True:
+        payload = CONVERSION_QUEUE.get()
+        job_id = payload["job_id"]
+        try:
+            add_log(job_id, f"Dequeued by worker {worker_number}")
+            run_conversion_job(
+                job_id,
+                payload["input_path"],
+                payload["webm_path"],
+                payload["apng_path"],
+                payload["threshold"],
+                payload["softness"],
+                payload["sample_every"],
+                payload["pad"],
+                payload["corner"],
+            )
+        finally:
+            CONVERSION_QUEUE.task_done()
+
+
+def start_queue_workers():
+    global QUEUE_WORKERS_STARTED
+    if QUEUE_WORKERS_STARTED:
+        return
+    QUEUE_WORKERS_STARTED = True
+    for worker_number in range(1, MAX_ACTIVE_JOBS + 1):
+        thread = threading.Thread(
+            target=conversion_worker_loop,
+            args=(worker_number,),
+            daemon=True,
+        )
+        thread.start()
 
 
 def render_page(error=None, job=None):
@@ -1163,8 +1220,8 @@ def healthz():
 @app.post("/")
 def index():
     cleanup_expired_jobs()
-    if active_job_count() >= MAX_ACTIVE_JOBS:
-        return render_page(error="The converter is busy. Please try again in a few minutes."), 429
+    if CONVERSION_QUEUE.full():
+        return render_page(error="The conversion queue is full. Please try again in a few minutes."), 429
 
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
@@ -1198,22 +1255,27 @@ def index():
         return render_page(error="That file does not look like a valid MP4."), 400
 
     job = create_job(job_id, title)
-    worker = threading.Thread(
-        target=run_conversion_job,
-        args=(
-            job_id,
-            input_path,
-            webm_path,
-            apng_path,
-            threshold,
-            softness,
-            sample_every,
-            pad,
-            corner,
-        ),
-        daemon=True,
-    )
-    worker.start()
+    try:
+        CONVERSION_QUEUE.put_nowait(
+            {
+                "job_id": job_id,
+                "input_path": input_path,
+                "webm_path": webm_path,
+                "apng_path": apng_path,
+                "threshold": threshold,
+                "softness": softness,
+                "sample_every": sample_every,
+                "pad": pad,
+                "corner": corner,
+            }
+        )
+    except queue_module.Full:
+        with JOBS_LOCK:
+            JOBS.pop(job_id, None)
+        shutil.rmtree(job_dir, ignore_errors=True)
+        return render_page(error="The conversion queue is full. Please try again in a few minutes."), 429
+
+    add_log(job_id, "Waiting for a conversion worker.")
 
     return render_page(job=snapshot_job(job_id) or job)
 
@@ -1260,6 +1322,7 @@ def file_too_large(_error):
 
 
 start_cleanup_thread()
+start_queue_workers()
 
 
 if __name__ == "__main__":

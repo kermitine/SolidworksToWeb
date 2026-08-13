@@ -52,9 +52,14 @@ For public deployments, the web UI keeps generated files temporarily and cleans 
 SWTOWEB_RETENTION_HOURS=24
 SWTOWEB_CLEANUP_INTERVAL_MINUTES=30
 SWTOWEB_MAX_ACTIVE_JOBS=1
+SWTOWEB_MAX_QUEUE_SIZE=10
 SWTOWEB_MAX_UPLOAD_MB=512
 SWTOWEB_FRAME_ANCESTORS="'self' https://ayriknabirahni.com https://www.ayriknabirahni.com"
 ```
+
+Uploads with the same filename are safe. Each conversion is stored in its own unique job folder, so files do not overwrite each other.
+
+Conversions are queued. By default, one job is processed at a time and up to 10 jobs can wait in line. Increase `SWTOWEB_MAX_ACTIVE_JOBS` only if the server has enough CPU/RAM for multiple video conversions at once.
 
 Put the app behind HTTPS when exposing it publicly.
 

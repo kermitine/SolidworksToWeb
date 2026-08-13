@@ -12,6 +12,7 @@ services:
       SWTOWEB_RETENTION_HOURS: "24"
       SWTOWEB_CLEANUP_INTERVAL_MINUTES: "30"
       SWTOWEB_MAX_ACTIVE_JOBS: "1"
+      SWTOWEB_MAX_QUEUE_SIZE: "10"
       SWTOWEB_FRAME_ANCESTORS: "'self' https://ayriknabirahni.com https://www.ayriknabirahni.com"
     volumes:
       - ./output:/app/output
