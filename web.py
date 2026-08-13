@@ -1,12 +1,14 @@
 import os
+import re
 import shutil
 import threading
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 import cv2
-from flask import Flask, jsonify, render_template_string, request, send_from_directory, url_for
+from flask import Flask, abort, jsonify, render_template_string, request, send_from_directory, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
@@ -14,17 +16,49 @@ from main import mp4_to_transparent_webm_and_apng, version
 
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def env_int(name, default, minimum=None):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        value = default
+    if minimum is not None:
+        value = max(minimum, value)
+    return value
+
+
+def env_float(name, default, minimum=None):
+    try:
+        value = float(os.environ.get(name, str(default)))
+    except ValueError:
+        value = default
+    if minimum is not None:
+        value = max(minimum, value)
+    return value
+
+
 OUTPUT_ROOT = Path(os.environ.get("SWTOWEB_OUTPUT_DIR", BASE_DIR / "output")).resolve()
-MAX_UPLOAD_MB = int(os.environ.get("SWTOWEB_MAX_UPLOAD_MB", "512"))
-MAX_LOG_LINES = int(os.environ.get("SWTOWEB_MAX_LOG_LINES", "250"))
+MAX_UPLOAD_MB = env_int("SWTOWEB_MAX_UPLOAD_MB", 512, minimum=1)
+MAX_LOG_LINES = env_int("SWTOWEB_MAX_LOG_LINES", 250, minimum=25)
+RETENTION_HOURS = env_float("SWTOWEB_RETENTION_HOURS", 24, minimum=0.25)
+CLEANUP_INTERVAL_SECONDS = env_int("SWTOWEB_CLEANUP_INTERVAL_MINUTES", 30, minimum=5) * 60
+MAX_ACTIVE_JOBS = env_int("SWTOWEB_MAX_ACTIVE_JOBS", 1, minimum=1)
+FRAME_ANCESTORS = os.environ.get(
+    "SWTOWEB_FRAME_ANCESTORS",
+    "'self' https://ayriknabirahni.com https://www.ayriknabirahni.com",
+)
 ALLOWED_CORNERS = {"avg", "tl", "tr", "bl", "br"}
+OUTPUT_EXTENSIONS = {".webm", ".png"}
+JOB_ID_RE = re.compile(r"^[a-f0-9]{32}$")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
-app.config["SECRET_KEY"] = os.environ.get("SWTOWEB_SECRET_KEY", "local-dev")
+app.config["SECRET_KEY"] = os.environ.get("SWTOWEB_SECRET_KEY") or os.urandom(32)
 
 JOBS = {}
 JOBS_LOCK = threading.Lock()
+CLEANUP_STARTED = False
 
 
 PAGE = """
@@ -34,6 +68,7 @@ PAGE = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SolidworksToWeb</title>
+  <link rel="icon" href="{{ url_for('asset_file', filename='icon.ico') }}" sizes="any">
   <style>
     :root {
       color-scheme: dark;
@@ -62,9 +97,7 @@ PAGE = """
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(249, 0, 0, 0.12), transparent 320px),
-        linear-gradient(180deg, #10141a 0%, var(--page) 44%);
+      background: linear-gradient(180deg, #10141a 0%, var(--page) 44%);
       min-height: 100vh;
     }
 
@@ -72,6 +105,11 @@ PAGE = """
       width: min(1060px, calc(100% - 32px));
       margin: 0 auto;
       padding: 28px 0;
+    }
+
+    .embed-mode .shell {
+      width: min(100% - 24px, 1020px);
+      padding: 12px 0;
     }
 
     header {
@@ -109,6 +147,30 @@ PAGE = """
       white-space: nowrap;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .help-link {
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-2);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .help-link:hover {
+      border-color: var(--accent-line);
+      background: var(--accent-soft);
+    }
+
     main {
       display: grid;
       grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
@@ -127,6 +189,11 @@ PAGE = """
 
     .tool {
       padding: 18px;
+    }
+
+    .embed-mode main {
+      grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+      gap: 14px;
     }
 
     .field {
@@ -275,6 +342,17 @@ PAGE = """
       padding: 10px 12px;
       margin-bottom: 16px;
       font-size: 14px;
+    }
+
+    .notice {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.45;
     }
 
     .result {
@@ -453,6 +531,7 @@ PAGE = """
     @media (max-width: 820px) {
       .shell { width: min(100% - 24px, 640px); padding: 18px 0; }
       header { align-items: flex-start; }
+      .header-actions { align-items: flex-end; }
       main { grid-template-columns: 1fr; }
       .advanced-grid { grid-template-columns: 1fr; }
       .segments { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -460,21 +539,29 @@ PAGE = """
     }
   </style>
 </head>
-<body>
+<body class="{% if embed_mode %}embed-mode{% endif %}">
   <div class="shell">
-    <header>
+    <header {% if embed_mode %}hidden{% endif %}>
       <div class="brand">
         <img src="{{ url_for('asset_file', filename='icon.ico') }}" alt="">
         <h1>SolidworksToWeb</h1>
       </div>
-      <div class="version">v{{ version }}</div>
+      <div class="header-actions">
+        <a class="help-link" href="https://github.com/kermitine/SolidworksToWeb#how-to-use" target="_blank" rel="noopener noreferrer">How to use</a>
+        <div class="version">v{{ version }}</div>
+      </div>
     </header>
 
     <main>
-      <form class="tool" action="{{ url_for('index') }}" method="post" enctype="multipart/form-data">
+      <form class="tool" action="{{ url_for('index', embed=1) if embed_mode else url_for('index') }}" method="post" enctype="multipart/form-data">
+        {% if embed_mode %}
+          <input type="hidden" name="_embed" value="1">
+        {% endif %}
         {% if error %}
           <div class="error">{{ error }}</div>
         {% endif %}
+
+        <div class="notice">Generated server files are deleted after {{ retention_label }}.</div>
 
         <div class="field">
           <label for="file">MP4 source</label>
@@ -545,11 +632,53 @@ PAGE = """
               <a class="button" data-role="webm-link" href="{{ job.webm_url or '#' }}" download>Download WebM</a>
               <a class="button secondary" data-role="apng-link" href="{{ job.apng_url or '#' }}" download>Download APNG</a>
             </div>
+            <p data-role="expiry-note" {% if job.status != "complete" %}hidden{% endif %}>Temporary server files expire after {{ retention_label }}.</p>
 
             <div class="embed-help" data-role="embed-help" {% if job.status != "complete" %}hidden{% endif %}>
               <h3>Website Compatibility Embed</h3>
-              <p>Use the WebM as the normal transparent animation and the APNG as the iOS fallback.</p>
-              <pre class="embed-code" data-role="embed-code"></pre>
+              <p>Upload both generated files to your website or CDN, then replace these sample URLs with those public file URLs. The download links above are temporary local server files.</p>
+              <pre class="embed-code" data-role="embed-code">&lt;div class=&quot;alpha-anim&quot;&gt;
+  &lt;video class=&quot;alpha-webm&quot; autoplay loop muted playsinline&gt;
+    &lt;source src=&quot;https://ayriknabirahni.com/wp-content/uploads/2026/08/ffsign.webm&quot; type=&quot;video/webm&quot;&gt;
+  &lt;/video&gt;
+
+  &lt;img class=&quot;alpha-apng&quot; src=&quot;https://ayriknabirahni.com/wp-content/uploads/2026/08/ffsign.png&quot; alt=&quot;&quot;&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+(function () {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === &quot;MacIntel&quot; &amp;&amp; navigator.maxTouchPoints &gt; 1);
+
+  if (isIOS) {
+    document.querySelectorAll(&quot;.alpha-anim&quot;).forEach(wrap =&gt; {
+      const v = wrap.querySelector(&quot;.alpha-webm&quot;);
+      const i = wrap.querySelector(&quot;.alpha-apng&quot;);
+      if (v) v.style.display = &quot;none&quot;;
+      if (i) i.style.display = &quot;block&quot;;
+    });
+  }
+})();
+&lt;/script&gt;
+
+&lt;style&gt;
+.alpha-anim {
+  position: relative;
+  width: 100%;
+}
+
+.alpha-webm,
+.alpha-apng {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: transparent;
+}
+
+.alpha-apng {
+  display: none;
+}
+&lt;/style&gt;</pre>
             </div>
           </div>
           <div class="preview" data-role="preview" {% if job.status != "complete" %}hidden{% endif %}>
@@ -588,7 +717,7 @@ PAGE = """
       const webmLink = panel.querySelector('[data-role="webm-link"]');
       const apngLink = panel.querySelector('[data-role="apng-link"]');
       const embedHelp = panel.querySelector('[data-role="embed-help"]');
-      const embedCode = panel.querySelector('[data-role="embed-code"]');
+      const expiryNote = panel.querySelector('[data-role="expiry-note"]');
 
       if (fill) fill.style.width = `${progress}%`;
       setText("progress-text", `${progress}%`);
@@ -609,7 +738,7 @@ PAGE = """
         if (apngLink) apngLink.href = job.apng_url;
         if (actions) actions.hidden = false;
         if (embedHelp) embedHelp.hidden = false;
-        if (embedCode) embedCode.textContent = buildEmbedSnippet(job.webm_url, job.apng_url);
+        if (expiryNote) expiryNote.hidden = false;
         if (preview) preview.hidden = false;
         if (video && job.webm_url && !video.querySelector("source")) {
           const source = document.createElement("source");
@@ -619,54 +748,6 @@ PAGE = """
           video.load();
         }
       }
-    }
-
-    function buildEmbedSnippet(webmUrl, apngUrl) {
-      const webm = new URL(webmUrl, window.location.origin).href;
-      const apng = new URL(apngUrl, window.location.origin).href;
-
-      return `<div class="alpha-anim">
-  <video class="alpha-webm" autoplay loop muted playsinline>
-    <source src="${webm}" type="video/webm">
-  </video>
-
-  <img class="alpha-apng" src="${apng}" alt="">
-</div>
-
-<script>
-(function () {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-  if (isIOS) {
-    document.querySelectorAll(".alpha-anim").forEach(wrap => {
-      const v = wrap.querySelector(".alpha-webm");
-      const i = wrap.querySelector(".alpha-apng");
-      if (v) v.style.display = "none";
-      if (i) i.style.display = "block";
-    });
-  }
-})();
-<\\/script>
-
-<style>
-.alpha-anim {
-  position: relative;
-  width: 100%;
-}
-
-.alpha-webm,
-.alpha-apng {
-  display: block;
-  width: 100%;
-  height: auto;
-  background: transparent;
-}
-
-.alpha-apng {
-  display: none;
-}
-</style>`;
     }
 
     async function pollJob() {
@@ -721,6 +802,98 @@ def get_video_fps(path):
     return fps
 
 
+def retention_label():
+    if RETENTION_HOURS >= 1:
+        return f"{RETENTION_HOURS:g} hours"
+    return f"{int(RETENTION_HOURS * 60)} minutes"
+
+
+def is_valid_job_id(job_id):
+    return bool(JOB_ID_RE.fullmatch(job_id or ""))
+
+
+def jobs_root():
+    return OUTPUT_ROOT / "jobs"
+
+
+def newest_mtime(path):
+    try:
+        latest = path.stat().st_mtime
+    except OSError:
+        return 0
+
+    if not path.is_dir():
+        return latest
+
+    for child in path.rglob("*"):
+        try:
+            latest = max(latest, child.stat().st_mtime)
+        except OSError:
+            continue
+    return latest
+
+
+def active_job_ids():
+    with JOBS_LOCK:
+        return {
+            job_id
+            for job_id, job in JOBS.items()
+            if job.get("status") in {"queued", "running"}
+        }
+
+
+def active_job_count():
+    return len(active_job_ids())
+
+
+def cleanup_expired_jobs():
+    root = jobs_root()
+    root.mkdir(parents=True, exist_ok=True)
+    cutoff = time.time() - (RETENTION_HOURS * 60 * 60)
+    active_ids = active_job_ids()
+
+    for job_dir in root.iterdir():
+        if not job_dir.is_dir() or job_dir.name in active_ids:
+            continue
+        if newest_mtime(job_dir) < cutoff:
+            shutil.rmtree(job_dir, ignore_errors=True)
+
+    with JOBS_LOCK:
+        expired_job_ids = [
+            job_id
+            for job_id, job in JOBS.items()
+            if job.get("status") not in {"queued", "running"}
+            and job.get("created_at", 0) < cutoff
+        ]
+        for job_id in expired_job_ids:
+            JOBS.pop(job_id, None)
+
+
+def cleanup_loop():
+    while True:
+        time.sleep(CLEANUP_INTERVAL_SECONDS)
+        cleanup_expired_jobs()
+
+
+def start_cleanup_thread():
+    global CLEANUP_STARTED
+    if CLEANUP_STARTED:
+        return
+    CLEANUP_STARTED = True
+    cleanup_expired_jobs()
+    thread = threading.Thread(target=cleanup_loop, daemon=True)
+    thread.start()
+
+
+def looks_like_mp4(path):
+    try:
+        with path.open("rb") as handle:
+            header = handle.read(16)
+    except OSError:
+        return False
+    return len(header) >= 12 and header[4:8] == b"ftyp"
+
+
 def now_label():
     return datetime.now().strftime("%H:%M:%S")
 
@@ -770,6 +943,7 @@ def create_job(job_id, title):
         "webm_url": None,
         "apng_url": None,
         "error": None,
+        "created_at": time.time(),
     }
     with JOBS_LOCK:
         JOBS[job_id] = job
@@ -829,11 +1003,14 @@ def run_conversion_job(
 
 
 def render_page(error=None, job=None):
+    embed_mode = request.args.get("embed") == "1" or request.form.get("_embed") == "1"
     return render_template_string(
         PAGE,
         version=version,
         error=error,
         job=job,
+        retention_label=retention_label(),
+        embed_mode=embed_mode,
         corners=[
             ("avg", "Avg"),
             ("tl", "TL"),
@@ -849,6 +1026,17 @@ def render_page(error=None, job=None):
     )
 
 
+@app.after_request
+def set_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("Content-Security-Policy", f"frame-ancestors {FRAME_ANCESTORS}")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if request.path.startswith("/jobs/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.get("/")
 def index_get():
     return render_page()
@@ -856,12 +1044,16 @@ def index_get():
 
 @app.post("/")
 def index():
+    cleanup_expired_jobs()
+    if active_job_count() >= MAX_ACTIVE_JOBS:
+        return render_page(error="The converter is busy. Please try again in a few minutes."), 429
+
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
         return render_page(error="Choose an MP4 file first."), 400
 
     source_name = secure_filename(uploaded.filename)
-    if Path(source_name).suffix.lower() != ".mp4":
+    if not source_name or Path(source_name).suffix.lower() != ".mp4":
         return render_page(error="Only MP4 uploads are supported."), 400
 
     corner = request.form.get("corner", "avg")
@@ -882,6 +1074,10 @@ def index():
     webm_path = job_dir / f"{title}.webm"
     apng_path = job_dir / f"{title}.png"
     uploaded.save(input_path)
+
+    if not looks_like_mp4(input_path):
+        shutil.rmtree(job_dir, ignore_errors=True)
+        return render_page(error="That file does not look like a valid MP4."), 400
 
     job = create_job(job_id, title)
     worker = threading.Thread(
@@ -906,6 +1102,8 @@ def index():
 
 @app.get("/jobs/<job_id>")
 def job_status(job_id):
+    if not is_valid_job_id(job_id):
+        return jsonify({"error": "Job not found"}), 404
     job = snapshot_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
@@ -914,17 +1112,36 @@ def job_status(job_id):
 
 @app.get("/output/<job_id>/<path:filename>")
 def download_file(job_id, filename):
+    requested = Path(filename)
+    if (
+        not is_valid_job_id(job_id)
+        or "/" in filename
+        or "\\" in filename
+        or requested.name != filename
+        or requested.suffix.lower() not in OUTPUT_EXTENSIONS
+    ):
+        abort(404)
     return send_from_directory(OUTPUT_ROOT / "jobs" / job_id, filename, as_attachment=False)
 
 
 @app.get("/assets/<path:filename>")
 def asset_file(filename):
+    if filename != "icon.ico":
+        abort(404)
     return send_from_directory(BASE_DIR / "assets", filename)
+
+
+@app.get("/favicon.ico")
+def favicon():
+    return send_from_directory(BASE_DIR / "assets", "icon.ico")
 
 
 @app.errorhandler(RequestEntityTooLarge)
 def file_too_large(_error):
     return render_page(error=f"Uploads are limited to {MAX_UPLOAD_MB} MB."), 413
+
+
+start_cleanup_thread()
 
 
 if __name__ == "__main__":

@@ -37,6 +37,31 @@ docker compose up -d --build
 
 Open `http://localhost:8000`, upload an MP4, choose the background sample corner, and download the generated WebM/APNG outputs. Converted files are persisted under `output/jobs/` on the host through the Compose volume.
 
+For public deployments, the web UI keeps generated files temporarily and cleans up old job folders at startup and every 30 minutes. The default settings in `docker-compose.yml` keep outputs for 24 hours and allow one active conversion at a time:
+
+```
+SWTOWEB_RETENTION_HOURS=24
+SWTOWEB_CLEANUP_INTERVAL_MINUTES=30
+SWTOWEB_MAX_ACTIVE_JOBS=1
+SWTOWEB_MAX_UPLOAD_MB=512
+SWTOWEB_FRAME_ANCESTORS="'self' https://ayriknabirahni.com https://www.ayriknabirahni.com"
+```
+
+Put the app behind HTTPS when exposing it publicly.
+
+The Compose service also drops Linux capabilities, prevents privilege escalation, uses a read-only container filesystem, and keeps `/tmp` writable for video processing scratch files.
+
+To embed the converter on another site, allow that site in `SWTOWEB_FRAME_ANCESTORS` and use the compact iframe URL:
+
+```
+<iframe
+  src="https://YOUR-CONVERTER-DOMAIN.example/?embed=1"
+  title="SolidworksToWeb animation converter"
+  style="width: 100%; min-height: 860px; border: 0;"
+  loading="lazy"
+></iframe>
+```
+
 To update a deployed checkout:
 
 ```
