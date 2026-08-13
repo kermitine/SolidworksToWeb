@@ -406,9 +406,22 @@ PAGE = """
       overflow: hidden;
     }
 
+    .empty {
+      display: block;
+      width: 100%;
+      align-self: stretch;
+      min-height: 112px;
+    }
+
     .result-body,
     .empty {
       padding: 18px;
+    }
+
+    .result-body > *,
+    .empty > * {
+      min-width: 0;
+      max-width: 100%;
     }
 
     .result-head {
@@ -431,6 +444,13 @@ PAGE = """
       margin: 0 0 14px;
       color: var(--muted);
       line-height: 1.45;
+    }
+
+    .empty h2,
+    .empty p {
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
 
     .status-pill {
