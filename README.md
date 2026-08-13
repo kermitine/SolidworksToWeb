@@ -25,6 +25,24 @@ FFMPEG also must be installed/added to path for APNG generation to function. FFM
 After installing all dependencies, run main.py and select your mp4 file with a chroma-keyable background (ensure it has a strong contrast with your assembly itself) and let it run! Your exports will be available in output/, which is generated in the same directory as main.py.
 
 Alternatively, you can just use the packaged exe (available in releases on this page) and run it like that. FFMPEG comes automatically bundled along with the executable.
+
+## Web UI with Docker Compose
+The repo also includes a simple upload UI that can be built directly from the GitHub source.
+
+```
+git clone https://github.com/kermitine/SolidworksToWeb.git
+cd SolidworksToWeb
+docker compose up -d --build
+```
+
+Open `http://localhost:8000`, upload an MP4, choose the background sample corner, and download the generated WebM/APNG outputs. Converted files are persisted under `output/jobs/` on the host through the Compose volume.
+
+To update a deployed checkout:
+
+```
+git pull
+docker compose up -d --build
+```
 ## Examples
 Here are the source files, which are directly uploaded to SWToWeb. No other human inputs required.
 

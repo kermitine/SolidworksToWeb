@@ -6,8 +6,6 @@ import shutil
 import time
 import sys
 from pathlib import Path
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename
 from moviepy import VideoFileClip
 from moviepy.video.fx import MaskColor, Crop
 from KermLib.KermLib import *
@@ -16,9 +14,6 @@ from KermLib.KermLib import *
 
 
 version = '1.1.2'
-
-KermLib.ascii_run()
-print(f'SolidworksToWeb V{version} initialized')
 
 def delete_folder_recursive(folder_path):
     shutil.rmtree(folder_path)
@@ -220,44 +215,55 @@ def _make_bbox_even(x1, y1, x2, y2, W, H):
     return x1, y1, x2, y2
 
 
-# get file
-Tk().withdraw()
-print('Please select your original mp4 to chroma key:') 
-input_filepath = askopenfilename() 
+def run_cli():
+    from tkinter import Tk
+    from tkinter.filedialog import askopenfilename
 
-# extract filename (no extension)
-path = Path(input_filepath)
-filename = path.stem
+    KermLib.ascii_run()
+    print(f'SolidworksToWeb V{version} initialized')
 
-print('tl = color of top left pixel')
-print('tr = color of top right pixel')
-print('bl = color of bottom left pixel')
-print('br = color of bottom right pixel')
-print('avg = average color of all 4 corners')
-print('Please select which corner(s) to extract greenscreen color from:')
+    # get file
+    Tk().withdraw()
+    print('Please select your original mp4 to chroma key:')
+    input_filepath = askopenfilename()
 
-while True:
-    selected_corner = str(input()).lower().strip()
-    if selected_corner not in ['tl', 'tr', 'bl', 'br', 'avg']:
-        print(f'"{selected_corner}" not recognized as a corner. Please select which corner(s) to extract greenscreen color from:')
-        continue
-    break
+    # extract filename (no extension)
+    path = Path(input_filepath)
+    filename = path.stem
 
-cap = cv2.VideoCapture(input_filepath) # grab fps for video
-fps = cap.get(cv2.CAP_PROP_FPS)
-cap.release
+    print('tl = color of top left pixel')
+    print('tr = color of top right pixel')
+    print('bl = color of bottom left pixel')
+    print('br = color of bottom right pixel')
+    print('avg = average color of all 4 corners')
+    print('Please select which corner(s) to extract greenscreen color from:')
 
-mp4_to_transparent_webm_and_apng(
-    input_filepath,
-    f"output/{filename}/{filename}.webm",
-    f"output/{filename}/{filename}.png",
-    fps=fps,
-    thr=135,
-    s=12,
-    corner=selected_corner
-)
+    while True:
+        selected_corner = str(input()).lower().strip()
+        if selected_corner not in ['tl', 'tr', 'bl', 'br', 'avg']:
+            print(f'"{selected_corner}" not recognized as a corner. Please select which corner(s) to extract greenscreen color from:')
+            continue
+        break
 
-print('Clearing temp files...')
-delete_folder_recursive(f'output/{filename}/apng_frames')
-print(f'Animation generation complete. Output is available in output/{filename}. Program will automatically close in 10 seconds.')
-time.sleep(10)
+    cap = cv2.VideoCapture(input_filepath) # grab fps for video
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
+
+    mp4_to_transparent_webm_and_apng(
+        input_filepath,
+        f"output/{filename}/{filename}.webm",
+        f"output/{filename}/{filename}.png",
+        fps=fps,
+        thr=135,
+        s=12,
+        corner=selected_corner
+    )
+
+    print('Clearing temp files...')
+    delete_folder_recursive(f'output/{filename}/apng_frames')
+    print(f'Animation generation complete. Output is available in output/{filename}. Program will automatically close in 10 seconds.')
+    time.sleep(10)
+
+
+if __name__ == "__main__":
+    run_cli()

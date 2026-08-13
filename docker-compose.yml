@@ -1,0 +1,13 @@
+services:
+  solidworkstoweb:
+    build:
+      context: https://github.com/kermitine/SolidworksToWeb.git#main
+    image: solidworkstoweb:latest
+    ports:
+      - "8000:8000"
+    environment:
+      SWTOWEB_OUTPUT_DIR: /app/output
+      SWTOWEB_MAX_UPLOAD_MB: "512"
+    volumes:
+      - ./output:/app/output
+    restart: unless-stopped
