@@ -101,6 +101,11 @@ PAGE = """
       min-height: 100vh;
     }
 
+    body.embed-mode {
+      min-height: 0;
+      background: var(--page);
+    }
+
     .shell {
       width: min(1060px, calc(100% - 32px));
       margin: 0 auto;
@@ -700,6 +705,15 @@ PAGE = """
 
   <script>
     const panel = document.querySelector("[data-job-id]");
+    const embedMode = document.body.classList.contains("embed-mode");
+
+    function postEmbedHeight() {
+      if (!embedMode || window.parent === window) return;
+      const shell = document.querySelector(".shell");
+      const shellRect = shell ? shell.getBoundingClientRect() : document.body.getBoundingClientRect();
+      const height = Math.ceil(shellRect.top + shellRect.height + 4);
+      window.parent.postMessage({ type: "swtoweb:resize", height }, "*");
+    }
 
     function setText(role, value) {
       const node = panel.querySelector(`[data-role="${role}"]`);
@@ -748,6 +762,8 @@ PAGE = """
           video.load();
         }
       }
+
+      postEmbedHeight();
     }
 
     async function pollJob() {
@@ -765,11 +781,21 @@ PAGE = """
       } catch (error) {
         setText("message", "Status check failed");
         window.setTimeout(pollJob, 2000);
+        postEmbedHeight();
       }
     }
 
     if (panel) {
       pollJob();
+    }
+
+    if (embedMode) {
+      window.addEventListener("load", postEmbedHeight);
+      window.addEventListener("resize", postEmbedHeight);
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(postEmbedHeight).observe(document.querySelector(".shell"));
+      }
+      postEmbedHeight();
     }
   </script>
 </body>

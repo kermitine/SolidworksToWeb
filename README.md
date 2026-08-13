@@ -26,6 +26,15 @@ After installing all dependencies, run main.py and select your mp4 file with a c
 
 Alternatively, you can just use the packaged exe (available in releases on this page) and run it like that. FFMPEG comes automatically bundled along with the executable.
 
+## Hosted Converter
+You can use the self-hosted web converter here:
+
+https://swtoweb.ex1.prxima.uk/
+
+For embedding the converter inside another page, use the compact iframe view:
+
+https://swtoweb.ex1.prxima.uk/?embed=1
+
 ## Web UI with Docker Compose
 The repo also includes a simple upload UI that can be built directly from the GitHub source.
 
@@ -55,11 +64,24 @@ To embed the converter on another site, allow that site in `SWTOWEB_FRAME_ANCEST
 
 ```
 <iframe
-  src="https://YOUR-CONVERTER-DOMAIN.example/?embed=1"
+  id="swtoweb-converter"
+  src="https://swtoweb.ex1.prxima.uk/?embed=1"
   title="SolidworksToWeb animation converter"
-  style="width: 100%; min-height: 860px; border: 0;"
+  style="width: 100%; height: 520px; border: 0; display: block;"
   loading="lazy"
 ></iframe>
+
+<script>
+window.addEventListener("message", event => {
+  if (event.origin !== "https://swtoweb.ex1.prxima.uk") return;
+  if (!event.data || event.data.type !== "swtoweb:resize") return;
+
+  const iframe = document.getElementById("swtoweb-converter");
+  if (iframe) {
+    iframe.style.height = `${Math.max(360, Math.min(event.data.height, 1600))}px`;
+  }
+});
+</script>
 ```
 
 To update a deployed checkout:
