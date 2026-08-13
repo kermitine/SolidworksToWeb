@@ -46,6 +46,8 @@ docker compose up -d --build
 
 Open `http://localhost:8000`, upload an MP4, choose the background sample corner, and download the generated WebM/APNG outputs. Converted files are persisted under `output/jobs/` on the host through the Compose volume.
 
+The web UI also keeps a persistent `Total files converted` count in `output/stats.json` on the host. It increments after a conversion finishes successfully and survives container restarts, image rebuilds, and container removal as long as the host `output/` directory is kept.
+
 For public deployments, the web UI keeps generated files temporarily and cleans up old job folders at startup and every 30 minutes. The default settings in `docker-compose.yml` keep outputs for 24 hours and allow one active conversion at a time:
 
 ```

@@ -1,3 +1,4 @@
+import json
 import os
 import queue as queue_module
 import re
@@ -5,7 +6,7 @@ import shutil
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
@@ -40,6 +41,7 @@ def env_float(name, default, minimum=None):
 
 
 OUTPUT_ROOT = Path(os.environ.get("SWTOWEB_OUTPUT_DIR", BASE_DIR / "output")).resolve()
+STATS_PATH = Path(os.environ.get("SWTOWEB_STATS_PATH") or (OUTPUT_ROOT / "stats.json")).resolve()
 MAX_UPLOAD_MB = env_int("SWTOWEB_MAX_UPLOAD_MB", 512, minimum=1)
 MAX_LOG_LINES = env_int("SWTOWEB_MAX_LOG_LINES", 250, minimum=25)
 RETENTION_HOURS = env_float("SWTOWEB_RETENTION_HOURS", 24, minimum=0.25)
@@ -60,6 +62,7 @@ app.config["SECRET_KEY"] = os.environ.get("SWTOWEB_SECRET_KEY") or os.urandom(32
 
 JOBS = {}
 JOBS_LOCK = threading.Lock()
+STATS_LOCK = threading.Lock()
 CONVERSION_QUEUE = queue_module.Queue(maxsize=MAX_QUEUE_SIZE)
 CLEANUP_STARTED = False
 QUEUE_WORKERS_STARTED = False
@@ -388,6 +391,25 @@ PAGE = """
       line-height: 1.45;
     }
 
+    .notice-metrics {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+      flex-wrap: wrap;
+    }
+
+    .notice-total {
+      color: var(--ink);
+      font-weight: 750;
+      overflow-wrap: anywhere;
+    }
+
+    .notice-total strong {
+      color: var(--success);
+      font-weight: 850;
+    }
+
     .result {
       overflow: hidden;
     }
@@ -649,7 +671,10 @@ PAGE = """
           <div class="error">{{ error }}</div>
         {% endif %}
 
-        <div class="notice">Generated server files are deleted after {{ retention_label }}.</div>
+        <div class="notice notice-metrics">
+          <span>Generated server files are deleted after {{ retention_label }}.</span>
+          <span class="notice-total">Total files converted: <strong data-role="total-files-converted">{{ total_files_converted }}</strong></span>
+        </div>
 
         <div class="field">
           <label for="file">MP4 source</label>
@@ -803,6 +828,14 @@ PAGE = """
       if (node) node.textContent = value;
     }
 
+    function setTotalFilesConverted(value) {
+      const total = Number(value || 0);
+      const label = Number.isFinite(total) ? total.toLocaleString() : "0";
+      document.querySelectorAll('[data-role="total-files-converted"]').forEach(node => {
+        node.textContent = label;
+      });
+    }
+
     function updateJob(job) {
       const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
       const fill = panel.querySelector('[data-role="progress-fill"]');
@@ -823,6 +856,10 @@ PAGE = """
       if (status) {
         status.textContent = job.status || "running";
         status.className = `status-pill ${job.status || "running"}`;
+      }
+
+      if (job.total_files_converted !== undefined) {
+        setTotalFilesConverted(job.total_files_converted);
       }
 
       if (logs) {
@@ -935,6 +972,66 @@ def is_valid_job_id(job_id):
 
 def jobs_root():
     return OUTPUT_ROOT / "jobs"
+
+
+def normalize_stats(raw_stats):
+    if not isinstance(raw_stats, dict):
+        raw_stats = {}
+    try:
+        total = int(raw_stats.get("total_files_converted", 0))
+    except (TypeError, ValueError):
+        total = 0
+    return {
+        "total_files_converted": max(0, total),
+        "updated_at": raw_stats.get("updated_at"),
+    }
+
+
+def read_stats_unlocked():
+    try:
+        with STATS_PATH.open("r", encoding="utf-8") as handle:
+            return normalize_stats(json.load(handle))
+    except FileNotFoundError:
+        return normalize_stats({})
+    except (OSError, json.JSONDecodeError):
+        return normalize_stats({})
+
+
+def write_stats_unlocked(stats):
+    STATS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = STATS_PATH.with_name(f".{STATS_PATH.name}.{uuid.uuid4().hex}.tmp")
+    with temp_path.open("w", encoding="utf-8") as handle:
+        json.dump(normalize_stats(stats), handle, sort_keys=True)
+        handle.write("\n")
+    temp_path.replace(STATS_PATH)
+
+
+def get_stats():
+    with STATS_LOCK:
+        return read_stats_unlocked()
+
+
+def total_files_converted():
+    return get_stats()["total_files_converted"]
+
+
+def increment_total_files_converted():
+    with STATS_LOCK:
+        stats = read_stats_unlocked()
+        stats["total_files_converted"] += 1
+        stats["updated_at"] = datetime.now(timezone.utc).isoformat()
+        write_stats_unlocked(stats)
+        return stats["total_files_converted"]
+
+
+def record_successful_conversion(job_id):
+    try:
+        total = increment_total_files_converted()
+    except OSError as exc:
+        add_log(job_id, f"Counter update failed: {exc}")
+        return None
+    add_log(job_id, f"Total files converted: {total}")
+    return total
 
 
 def newest_mtime(path):
@@ -1055,6 +1152,7 @@ def snapshot_job(job_id):
             return None
         snapshot = dict(job)
         snapshot["logs"] = list(job["logs"])
+    snapshot["total_files_converted"] = total_files_converted()
     if snapshot.get("status") == "queued":
         position = queued_job_position(job_id)
         snapshot["queue_position"] = position
@@ -1078,6 +1176,7 @@ def create_job(job_id, title):
         "started_at": None,
         "finished_at": None,
         "queue_position": None,
+        "total_files_converted": total_files_converted(),
     }
     with JOBS_LOCK:
         JOBS[job_id] = job
@@ -1120,6 +1219,7 @@ def run_conversion_job(
             log_callback=log,
             progress_callback=progress,
         )
+        total = record_successful_conversion(job_id)
         update_job(
             job_id,
             status="complete",
@@ -1128,6 +1228,7 @@ def run_conversion_job(
             webm_url=f"/output/{job_id}/{webm_path.name}",
             apng_url=f"/output/{job_id}/{apng_path.name}",
             finished_at=time.time(),
+            total_files_converted=total if total is not None else total_files_converted(),
         )
     except Exception as exc:
         add_log(job_id, f"ERROR: {exc}")
@@ -1179,6 +1280,7 @@ def render_page(error=None, job=None):
         version=version,
         error=error,
         job=job,
+        total_files_converted=total_files_converted(),
         retention_label=retention_label(),
         embed_mode=embed_mode,
         corners=[
@@ -1215,6 +1317,11 @@ def index_get():
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.get("/stats")
+def stats():
+    return jsonify(get_stats())
 
 
 @app.post("/")
