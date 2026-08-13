@@ -5,7 +5,7 @@ services:
     image: solidworkstoweb:latest
     pull_policy: build
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       SWTOWEB_OUTPUT_DIR: /app/output
       SWTOWEB_MAX_UPLOAD_MB: "512"
